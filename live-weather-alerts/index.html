@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <title>Real(ish)time weather alerts</title>
+    <link rel="stylesheet" href="https://suddenlygreg.com/static-assets/main.css">
+    <style type="text/css">
+      grid-container {
+        margin-top: 1rem;
+        display: block;
+      }
+
+      .alert {
+        + .alert {
+          margin-top: 1rem;
+        }
+
+        border: 1px solid black;
+        border-radius: 5px;
+
+        .event {
+          font-size: 1.4rem;
+          font-weight: bold;
+          padding: 1rem;
+          background-color: #F66;
+          border-radius: 5px 5px 0 0;
+        }
+
+        .desc {
+          padding: 1rem;
+          p:first-of-type {
+            margin-top: 0;
+          }
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      The weather alerts displayed here come from the
+      <a href="https://api.weather.gov">National Weather Service public API</a>.
+      This website is in <strong><em>absolute no way</em></strong> authoritative.
+      Authoritative weather alerts in the United States are managed by the
+      <a href="https://www.weather.gov">National Weather Service</a> only.
+
+      <grid-container>
+        <grid-column></grid-column>
+      </grid-container>
+    </main>
+    <script type="module">
+      import MD from "https://unpkg.com/markdown-it@15.0.0/dist/browser/markdown-it.esm.min.mjs";
+      const md = new MD();
+
+      const socket = new WebSocket("wss://jetstream.us-east.bsky.network/xrpc/network.bsky.jetstream.subscribeEvents?dids=did:plc:akfyudbcwqxkkph5onh3coxn&collections=com.mytinygiraffe.wx.alert.v1&kinds=commit")
+
+      const column = document.querySelector("grid-column");
+
+      const create = (key,record) => {
+        const container = document.createElement("div");
+        container.id = `alert_${key}`;
+        container.classList.add("alert");
+
+        const event = document.createElement("div");
+        event.classList.add("event");
+        event.innerText=record.properties.event;
+        container.append(event);
+
+        const desc = document.createElement("div");
+        desc.classList.add("desc");
+        desc.innerHTML = md.render(record.parsed.description);
+        container.append(desc);
+
+        column.insertBefore(container, column.firstChild)
+      }
+
+      const remove = key => {
+        document.getElementById(`alert_${key}`)?.remove();
+      }
+
+      socket.addEventListener("message", event => {
+        const data = JSON.parse(event.data).payload;
+
+        if(data.operation === "create")
+        {
+          create(data.rkey, data.record);
+        }
+        else if(data.operation === "delete") {
+          remove(data.rkey);
+        }
+      })
+    </script>
+  </body>
+</html>
